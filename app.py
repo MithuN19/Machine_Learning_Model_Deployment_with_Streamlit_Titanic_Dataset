@@ -29,15 +29,12 @@ page = st.sidebar.radio("Go to", ["Home", "Data Exploration", "Visualisations", 
 # --- Home page ---
 if page == "Home":
     st.title("Titanic Survival Prediction App")
-    st.write("""
-    This app allows you to explore the Titanic dataset, visualise trends, 
-    and predict passenger survival using a trained machine learning model.
-    """)
+    st.write("""This app allows you to explore the Titanic dataset, visualise trends, and predict passenger survival using a trained machine learning model.""")
 
-    st.subheader("Dataset Quick Info")
-    st.write(f"**Rows:** {df.shape[0]}")
-    st.write(f"**Columns:** {df.shape[1]}")
-    st.write(f"**Survival Rate:** {df['Survived'].mean():.2%}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Rows", df.shape[0])
+    c2.metric("Columns", df.shape[1])
+    c3.metric("Survival rate", f"{df['Survived'].mean():.2%}")
 
 # --- Data Exploration page ---
 elif page == "Data Exploration":
@@ -85,18 +82,22 @@ elif page == "Model Prediction":
     st.header("Predict Survival")
 
     with st.form("prediction_form"):
-        Pclass = st.selectbox("Passenger Class (Pclass)", [1, 2, 3])
-        Sex = st.selectbox("Sex", ["male", "female"])
-        Age = st.number_input("Age", min_value=0.0, max_value=100.0, value=30.0)
-        SibSp = st.number_input("Number of Siblings/Spouses Aboard", min_value=0, max_value=10, value=0)
-        Parch = st.number_input("Number of Parents/Children Aboard", min_value=0, max_value=10, value=0)
-        Fare = st.number_input("Passenger Fare", min_value=0.0, max_value=600.0, value=32.0)
-        Embarked = st.selectbox("Port of Embarkation", ["S", "C", "Q"])
+        st.caption("Enter passenger details to predict survival probability.")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            Pclass = st.selectbox("Passenger Class (Pclass)", [1, 2, 3], help="1 = Upper, 3 = Lower")
+            Sex = st.selectbox("Sex", ["male", "female"])
+            Age = st.slider("Age", 0, 100, 30)
+        with col2:
+            SibSp = st.number_input("Siblings/Spouses Aboard", min_value=0, max_value=10, value=0)
+            Parch = st.number_input("Parents/Children Aboard", min_value=0, max_value=10, value=0)
+            Fare = st.number_input("Passenger Fare", min_value=0.0, max_value=600.0, value=32.0, format="%.2f")
+        with col3:
+            Embarked = st.selectbox("Port of Embarkation", ["S", "C", "Q"], help="S = Southampton, C = Cherbourg, Q = Queenstown")
 
         submitted = st.form_submit_button("Predict")
 
     if submitted:
-        # Create the base dictionary with all features except Embarked encoding
         input_dict = {
             "Pclass": Pclass,
             "Sex": 0 if Sex == "male" else 1,
@@ -105,37 +106,40 @@ elif page == "Model Prediction":
             "Parch": Parch,
             "Fare": Fare,
             "FamilySize": SibSp + Parch + 1,
-            # Initialize all Embarked one-hot columns as 0 first
             "Embarked_C": 0,
             "Embarked_Q": 0,
             "Embarked_S": 0,
         }
 
-        # Set the correct Embarked dummy column to 1
         if Embarked == "C":
             input_dict["Embarked_C"] = 1
         elif Embarked == "Q":
             input_dict["Embarked_Q"] = 1
-        else:  # Embarked == "S"
+        else:
             input_dict["Embarked_S"] = 1
 
-        # Create DataFrame
         input_df = pd.DataFrame([input_dict])
 
-        # IMPORTANT: Reorder columns exactly as model expects
-        model_features = model.feature_names_in_
-        input_df = input_df[model_features]
-
-        prediction = model.predict(input_df)[0]
         try:
-            probability = model.predict_proba(input_df)[0][1]
-        except:
-            probability = None
+            model_features = model.feature_names_in_
+            for col in model_features:
+                if col not in input_df.columns:
+                    input_df[col] = 0
+            input_df = input_df[model_features]
 
-        if prediction == 1:
-            st.success(f"Survived ✅ (Confidence: {probability:.2%})" if probability is not None else "Survived ✅")
-        else:
-            st.error(f"Did not survive ❌ (Confidence: {1-probability:.2%})" if probability is not None else "Did not survive ❌")
+            with st.spinner("Predicting..."):
+                time.sleep(0.3)
+                pred, prob, err = safe_predict(model, input_df)
+
+            if err:
+                st.error(f"Prediction failed: {err}")
+            else:
+                if pred[0] == 1:
+                    st.success(f"Survived ✅ (Confidence: {prob[0]:.2%})" if prob is not None else "Survived ✅")
+                else:
+                    st.error(f"Did not survive ❌ (Confidence: {1 - prob[0]:.2%})" if prob is not None else "Did not survive ❌")
+        except Exception as e:
+            st.error(f"Error preparing input: {e}")
 
 # --- Model Performance page ---
 elif page == "Model Performance":
@@ -198,7 +202,3 @@ elif page == "Model Performance":
         ax5.set_ylabel("True Positive Rate")
         ax5.legend()
         st.pyplot(fig5)
-
-        
-        
-        
