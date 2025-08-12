@@ -75,8 +75,8 @@ elif page == "Visualisations":
     sns.countplot(data=df, x="Pclass", hue="Survived", palette="Set2", ax=ax2)
     st.pyplot(fig2)
 
-    # --- Age Distribution by Survival ---
-    st.subheader("Age Distribution by Survival")
+    # --- Average Distribution by Survival ---
+    st.subheader("Average Distribution by Survival")
     fig3 = sns.histplot(df, x="Age", hue="Survived", bins=30, kde=True)
     st.pyplot(fig3.figure)
 
