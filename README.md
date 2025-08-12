@@ -15,11 +15,16 @@ The app allows users to:
 ## 📂 Project Structure
 project/
 ├── app.py # Main Streamlit app
+
 ├── requirements.txt # Python dependencies
+
 ├── model.pkl # Trained ML model
+
 ├── feature_names.pkl # Model's expected feature names
+
 ├── data/
 │ └── titanic.csv # Dataset
+
 ├── notebooks/
 │ └── model_training.ipynb # Jupyter notebook for training
 └── README.md # Project documentation
