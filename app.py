@@ -63,83 +63,42 @@ elif page == "Data Exploration":
 elif page == "Visualisations":
     st.header("Visualisations")
 
+    # --- Survival Count ---
     st.subheader("Survival Count")
     fig1, ax1 = plt.subplots()
     sns.countplot(data=df, x="Survived", palette="pastel", ax=ax1)
     st.pyplot(fig1)
 
+    # --- Survival by Pclass ---
     st.subheader("Survival by Pclass")
     fig2, ax2 = plt.subplots()
     sns.countplot(data=df, x="Pclass", hue="Survived", palette="Set2", ax=ax2)
     st.pyplot(fig2)
 
+    # --- Age Distribution by Survival ---
     st.subheader("Age Distribution by Survival")
     fig3 = sns.histplot(df, x="Age", hue="Survived", bins=30, kde=True)
     st.pyplot(fig3.figure)
 
-# --- Model Prediction page ---
-elif page == "Model Prediction":
-    st.header("Predict Survival")
+    # --- Correlation Heatmap ---
+    st.subheader("Correlation Heatmap")
+    corr = df.corr(numeric_only=True)
+    fig4, ax4 = plt.subplots(figsize=(10, 6))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax4)
+    st.pyplot(fig4)
 
-    with st.form("prediction_form"):
-        st.caption("Enter passenger details to predict survival probability.")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            Pclass = st.selectbox("Passenger Class (Pclass)", [1, 2, 3], help="1 = Upper, 3 = Lower")
-            Sex = st.selectbox("Sex", ["male", "female"])
-            Age = st.slider("Age", 0, 100, 30)
-        with col2:
-            SibSp = st.number_input("Siblings/Spouses Aboard", min_value=0, max_value=10, value=0)
-            Parch = st.number_input("Parents/Children Aboard", min_value=0, max_value=10, value=0)
-            Fare = st.number_input("Passenger Fare", min_value=0.0, max_value=600.0, value=32.0, format="%.2f")
-        with col3:
-            Embarked = st.selectbox("Port of Embarkation", ["S", "C", "Q"], help="S = Southampton, C = Cherbourg, Q = Queenstown")
+    # --- Histograms for Numerical Features ---
+    st.subheader("Feature Distributions (Histograms)")
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    fig5, axes = plt.subplots(len(numeric_cols), 1, figsize=(8, len(numeric_cols) * 2))
+    if len(numeric_cols) == 1:
+        axes = [axes]
+    for i, col in enumerate(numeric_cols):
+        sns.histplot(df[col], kde=True, ax=axes[i], color="skyblue")
+        axes[i].set_title(f"Distribution of {col}")
+    plt.tight_layout()
+    st.pyplot(fig5)
 
-        submitted = st.form_submit_button("Predict")
-
-    if submitted:
-        input_dict = {
-            "Pclass": Pclass,
-            "Sex": 0 if Sex == "male" else 1,
-            "Age": Age,
-            "SibSp": SibSp,
-            "Parch": Parch,
-            "Fare": Fare,
-            "FamilySize": SibSp + Parch + 1,
-            "Embarked_C": 0,
-            "Embarked_Q": 0,
-            "Embarked_S": 0,
-        }
-
-        if Embarked == "C":
-            input_dict["Embarked_C"] = 1
-        elif Embarked == "Q":
-            input_dict["Embarked_Q"] = 1
-        else:
-            input_dict["Embarked_S"] = 1
-
-        input_df = pd.DataFrame([input_dict])
-
-        try:
-            model_features = model.feature_names_in_
-            for col in model_features:
-                if col not in input_df.columns:
-                    input_df[col] = 0
-            input_df = input_df[model_features]
-
-            with st.spinner("Predicting..."):
-                time.sleep(0.3)
-                pred, prob, err = safe_predict(model, input_df)
-
-            if err:
-                st.error(f"Prediction failed: {err}")
-            else:
-                if pred[0] == 1:
-                    st.success(f"Survived ✅ (Confidence: {prob[0]:.2%})" if prob is not None else "Survived ✅")
-                else:
-                    st.error(f"Did not survive ❌ (Confidence: {1 - prob[0]:.2%})" if prob is not None else "Did not survive ❌")
-        except Exception as e:
-            st.error(f"Error preparing input: {e}")
 
 # --- Model Performance page ---
 elif page == "Model Performance":
